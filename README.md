@@ -10,3 +10,6 @@ Bu Projeye Çok (neredeyse benden fazla) Olan
 https://github.com/DolphyWind a Teşekkür ederim!
 
 discord:urued#7424
+
+
+UYARI:RELEASEDEKI BOT GÜNCELLENMEMİŞTİR RELEASE DESTEKLENMIYOR
