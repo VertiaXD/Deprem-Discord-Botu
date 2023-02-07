@@ -13,3 +13,6 @@ discord:urued#7424
 
 
 UYARI:RELEASEDEKI BOT GÜNCELLENMEMİŞTİR RELEASE DESTEKLENMIYOR
+
+
+UYARI 2:Lütfen Bu Botun satışını Yapmayın, Emeklerimize hakaret edip üstüne maddi kazanç sağlamaya çalışmayın...
