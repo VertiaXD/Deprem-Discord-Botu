@@ -2,74 +2,96 @@ import requests
 import discord
 import datetime
 import time
+from earthquake_data import EarthquakeData
 
 client = discord.Client(intents=discord.Intents.all())
-
 TOKEN = "TOKEN"
-
 CHANNEL_ID = "KANAL ID"
-
-url = "https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&starttime=2023-01-01&endtime=2023-12-31&minmagnitude=4&limit=1&orderby=time&latitude=39&longitude=35&maxradiuskm=1000"
 
 # Her döngüden sonra beklenecek saniye sayısı
 # Eğer hiç beklemezseniz site sizi kısa süreliğine banlıyor.
 delay = 60
 
-def get_earthquake_info():
+def get_earthquake_info_kandilli():
+    url = 'https://api.orhanaydogdu.com.tr/deprem/live.php?limit=1'
+    
     try:
         response = requests.get(url)
-        data = response.json()
+        
         # Eğer site hata döndürürse None döndür.
         if response.status_code != 200:
             return None
-        earthquake_info = data['features'][0]['properties']
-        return earthquake_info
-    except:
+        
+        data = response.json()
+        earthquake_info = data['result'][0]
+        
+        eq_data = EarthquakeData(
+            magnitude=earthquake_info['mag'],
+            timestamp=earthquake_info['timestamp'],
+            location=earthquake_info['lokasyon'],
+            lat=earthquake_info['lat'],
+            long=earthquake_info['lng'],
+            depth=earthquake_info['depth'],
+            hash=earthquake_info['hash'],
+        )
+        
+        return eq_data
+    except Exception as e:
+        print(f'Bir hata meydana geldi: {e}')
+        return None
+
+def get_earthquake_info_usgs():
+    url = "https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&starttime=2023-01-01&endtime=2023-12-31&limit=1&orderby=time&latitude=39&longitude=35&maxradiuskm=1000"
+
+    try:
+        response = requests.get(url)
+        
+        # Eğer site hata döndürürse None döndür.
+        if response.status_code != 200:
+            return None
+        
+        data = response.json()
+        earthquake_info = data['features'][0]
+        
+        eq_data = EarthquakeData(
+            magnitude=earthquake_info['properties']['mag'],
+            timestamp=earthquake_info['properties']['time'] // 1000,
+            location=earthquake_info['properties']['place'],
+            lat=earthquake_info['geometry']['coordinates'][0],
+            long=earthquake_info['geometry']['coordinates'][1],
+        )
+        return eq_data
+    except Exception as e:
+        print(f'Bir hata meydana geldi: {e}')
         return None
     
 @client.event
 async def on_ready():
     print(f"Bot is ready, running on {client.user}")
     channel = client.get_channel(int(CHANNEL_ID))
-    last_earthquake_timestamp = None
+    last_hash = None
     
     while True:
         # Siteye çok fazla request attığım için kısa süreli ban yedim.
-        # Bunun için her döngüye 10 dk'lık bir delay ekledim
-        earthquake_info = get_earthquake_info()
+        # Bunun için her döngüye 1 dk'lık bir delay ekledim
+        eq_data = get_earthquake_info_kandilli()
         
-        # Eğer info alamadıysak bir sonraki döngye geç
-        if earthquake_info is None:
-            time.sleep(delay)
-            continue
+        # Eğer info alamadıysak usgs'yi dene eğer o da hata verirse bir sonraki döngye geç
+        if eq_data is None:
+            eq_data = get_earthquake_info_usgs()
+            if eq_data is None:
+                time.sleep(delay)
+                continue
         
-        magnitude = earthquake_info['mag']
-        place = earthquake_info['place']
-        # Milisaniyeden saniyeye çevirir
-        earthquake_time = earthquake_info['time'] // 1000
-        
-        # Eğer önceki yazdırılan depremin zamanı ile şimdiki depremin zamanı aynıysa aynı depremlerdir.
+        # Eğer önceki yazdırılan depremin hashi ile şimdiki depremin hashi aynıysa aynı depremlerdir.
         # Bu yüzden tekrar yazdırmak yerine bir sonraki döngüye geçer.
-        # Eğer değilse aşağıya devam eder ve last_earthquake_timestamp değişkenine şimdiki zamanı eşitler.
-        if last_earthquake_timestamp == earthquake_time:
+        # Eğer değilse aşağıya devam eder ve last_hash değişkenine şimdiki hashi eşitler.
+        if last_hash == eq_data.hash:
             time.sleep(delay)
             continue
-        last_earthquake_timestamp = earthquake_time
+        last_hash = eq_data.hash
         
-        # Epoch zamanından alıp datetime objesine çevirir.
-        earthquake_time = datetime.datetime.fromtimestamp(earthquake_time)
-        
-        # Tarih ve saati yazdırabilmek için
-        date_str = earthquake_time.strftime('%Y/%m/%d')
-        time_str = earthquake_time.strftime('%H:%M:%S')
-        
-        detailed_info_url = earthquake_info['url']
-        message = '**DİKKAT! TÜRKİYEDE DEPREM!!**\n' + \
-        f'Büyüklk: {magnitude}\n' + \
-        f'Lokasyon: {place}\n' + \
-        f'Tarih: {date_str}\n' + \
-        f'Saat: {time_str}\n' + \
-        f'Detaylı bilgi: {detailed_info_url}'
+        message = eq_data.get_message()
         
         await channel.send(message)
         time.sleep(delay)
