@@ -2,15 +2,16 @@ import requests
 import discord
 import datetime
 import time
+import asyncio
 from earthquake_data import EarthquakeData
 
 client = discord.Client(intents=discord.Intents.all())
 TOKEN = "TOKEN"
-CHANNEL_ID = "KANAL ID"
+CHANNEL_ID = "KANAL_ID"
 
 # Her döngüden sonra beklenecek saniye sayısı
 # Eğer hiç beklemezseniz site sizi kısa süreliğine banlıyor.
-delay = 300
+delay = 60
 
 def get_earthquake_info_kandilli():
     url = 'https://api.orhanaydogdu.com.tr/deprem/live.php?limit=1'
@@ -72,28 +73,22 @@ async def on_ready():
     last_hash = None
     
     while True:
-        # Siteye çok fazla request attığım için kısa süreli ban yedim.
-        # Bunun için her döngüye 1 dk'lık bir delay ekledim
         eq_data = get_earthquake_info_kandilli()
         
-        # Eğer info alamadıysak usgs'yi dene eğer o da hata verirse bir sonraki döngye geç
         if eq_data is None:
             eq_data = get_earthquake_info_usgs()
             if eq_data is None:
-                time.sleep(delay)
+                await asyncio.sleep(delay)
                 continue
         
-        # Eğer önceki yazdırılan depremin hashi ile şimdiki depremin hashi aynıysa aynı depremlerdir.
-        # Bu yüzden tekrar yazdırmak yerine bir sonraki döngüye geçer.
-        # Eğer değilse aşağıya devam eder ve last_hash değişkenine şimdiki hashi eşitler.
         if last_hash == eq_data.hash:
-            time.sleep(delay)
+            await asyncio.sleep(delay)
             continue
         last_hash = eq_data.hash
         
         message = eq_data.get_message()
         
         await channel.send(message)
-        time.sleep(delay)
+        await asyncio.sleep(delay)
         
 client.run(TOKEN)
