@@ -10,7 +10,7 @@ CHANNEL_ID = "KANAL ID"
 
 # Her döngüden sonra beklenecek saniye sayısı
 # Eğer hiç beklemezseniz site sizi kısa süreliğine banlıyor.
-delay = 60
+delay = 300
 
 def get_earthquake_info_kandilli():
     url = 'https://api.orhanaydogdu.com.tr/deprem/live.php?limit=1'
